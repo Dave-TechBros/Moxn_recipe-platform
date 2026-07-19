@@ -8,10 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "vercel-build": "next build && node scripts/setup.mjs",
-    "db:setup": "node scripts/setup.mjs",
-    "db:seed": "node scripts/seed.mjs",
-    "db:ensure": "node scripts/setup.mjs"
+    "db:seed": "node scripts/seed.mjs"
   },
   "dependencies": {
     "@vercel/blob": "^2.6.1",
