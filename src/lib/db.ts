@@ -17,12 +17,25 @@ function resolveConnectionString(): string {
   );
 }
 
+// Vercel's serverless functions can only reach Postgres over SSL, and a
+// manually-set DATABASE_URL often omits ?sslmode=require. Force TLS in
+// production so connections don't silently fail (which surfaces as 500s on
+// every query — e.g. "could not log in" and an empty landing page).
+function resolvePoolConfig(): ConstructorParameters<typeof Pool>[0] {
+  const connectionString = resolveConnectionString();
+  const config: ConstructorParameters<typeof Pool>[0] = {
+    connectionString,
+    max: 10,
+  };
+  if (process.env.NODE_ENV === "production" && !/sslmode=/i.test(connectionString)) {
+    config.ssl = { rejectUnauthorized: false };
+  }
+  return config;
+}
+
 const pool =
   global._moxnPool ??
-  new Pool({
-    connectionString: resolveConnectionString(),
-    max: 10,
-  });
+  new Pool(resolvePoolConfig());
 
 if (process.env.NODE_ENV !== "production") global._moxnPool = pool;
 
