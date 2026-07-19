@@ -1,5 +1,10 @@
 import { query, queryOne } from "@/lib/db";
 import type { Recipe, Category, Profile } from "@/lib/types";
+import {
+  STATIC_RECIPES,
+  STATIC_CATEGORIES,
+  STATIC_CREATORS,
+} from "@/lib/seed-data";
 
 const RECIPE_SELECT = `
   select
@@ -36,7 +41,7 @@ export async function getFeaturedRecipes(limit = 6): Promise<Recipe[]> {
     );
     return rows.map(shape);
   } catch {
-    return [];
+    return STATIC_RECIPES.filter((r) => r.featured).slice(0, limit);
   }
 }
 
@@ -64,7 +69,15 @@ export async function getRecipes({
     );
     return rows.map(shape);
   } catch {
-    return [];
+    const result = STATIC_RECIPES.filter((r) => r.is_published);
+    if (q) {
+      const pattern = q.toLowerCase();
+      return result.filter((r) => r.title.toLowerCase().includes(pattern)).slice(0, limit);
+    }
+    if (category) {
+      return result.filter((r) => r.category?.slug === category).slice(0, limit);
+    }
+    return result.slice(0, limit);
   }
 }
 
@@ -76,7 +89,7 @@ export async function getRecipeBySlug(slug: string): Promise<Recipe | null> {
     );
     return row ? shape(row) : null;
   } catch {
-    return null;
+    return STATIC_RECIPES.find((r) => r.slug === slug) ?? null;
   }
 }
 
@@ -112,7 +125,7 @@ export async function getCategories(): Promise<Category[]> {
   try {
     return await query<Category>("select * from categories order by name");
   } catch {
-    return [];
+    return STATIC_CATEGORIES;
   }
 }
 
@@ -125,7 +138,7 @@ export async function getFeaturedCreators(limit = 8): Promise<Profile[]> {
       [limit]
     );
   } catch {
-    return [];
+    return STATIC_CREATORS.slice(0, limit);
   }
 }
 
@@ -216,7 +229,16 @@ export async function getRecipesPerCategory(): Promise<CategoryStat[]> {
        order by count desc`
     );
   } catch {
-    return [];
+    const counts: Record<string, number> = {};
+    for (const r of STATIC_RECIPES) {
+      const key = r.category?.name ?? "Uncategorized";
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return STATIC_CATEGORIES.map((c) => ({
+      name: c.name,
+      emoji: c.emoji ?? null,
+      count: counts[c.name] ?? 0,
+    }));
   }
 }
 
