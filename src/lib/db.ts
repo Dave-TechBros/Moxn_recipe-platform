@@ -7,14 +7,17 @@ declare global {
 
 // Resolve the database connection string. Vercel Postgres exposes
 // POSTGRES_URL / POSTGRES_PRISMA_URL; local/dev uses DATABASE_URL.
+// Surrounding quotes (e.g. when a value is pasted with "...") are
+// stripped so the hostname never becomes "\"db.xxx\"" (which causes
+// getaddrinfo ENOTFOUND).
 function resolveConnectionString(): string {
-  return (
+  const raw =
     process.env.DATABASE_URL ||
     process.env.POSTGRES_URL_NON_POOLING ||
     process.env.POSTGRES_PRISMA_URL ||
     process.env.POSTGRES_URL ||
-    "postgresql://moxn:moxn_dev_pw@localhost:5432/moxn"
-  );
+    "postgresql://moxn:moxn_dev_pw@localhost:5432/moxn";
+  return raw.trim().replace(/^["']|["']$/g, "");
 }
 
 // Vercel's serverless functions can only reach Postgres over SSL, and a

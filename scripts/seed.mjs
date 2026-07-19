@@ -2,12 +2,18 @@ import bcrypt from "bcryptjs";
 import pkg from "pg";
 const { Pool } = pkg;
 
+const rawConn =
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_URL_NON_POOLING ||
+  process.env.POSTGRES_PRISMA_URL ||
+  process.env.POSTGRES_URL;
 const pool = new Pool({
-  connectionString:
-    process.env.DATABASE_URL ||
-    process.env.POSTGRES_URL_NON_POOLING ||
-    process.env.POSTGRES_PRISMA_URL ||
-    process.env.POSTGRES_URL,
+  connectionString: (rawConn || "").trim().replace(/^["']|["']$/g, ""),
+  ssl:
+    process.env.NODE_ENV === "production" &&
+    rawConn && !/sslmode=/i.test(rawConn)
+      ? { rejectUnauthorized: false }
+      : undefined,
 });
 
 function slugify(s) {

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { put } from "@vercel/blob";
 import { requireUser } from "@/lib/apiAuth";
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -28,11 +27,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "File must be under 5 MB" }, { status: 400 });
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const dir = path.join(process.cwd(), "public", "uploads", folder);
-  await mkdir(dir, { recursive: true });
   const filename = `${auth.userId}-${Date.now()}.${EXT[file.type]}`;
-  await writeFile(path.join(dir, filename), bytes);
+  const path = `${folder}/${filename}`;
 
-  const url = `/uploads/${folder}/${filename}`;
-  return NextResponse.json({ url });
+  // Use Vercel Blob in production when a token is configured; otherwise
+  // fall back to the local public/ folder (dev only — ephemeral on Vercel).
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const blob = await put(path, bytes, {
+      access: "public",
+      contentType: file.type,
+      addRandomSuffix: false,
+    });
+    return NextResponse.json({ url: blob.url });
+  }
+
+  const { writeFile, mkdir } = await import("fs/promises");
+  const pathMod = await import("path");
+  const dir = pathMod.join(process.cwd(), "public", "uploads", folder);
+  await mkdir(dir, { recursive: true });
+  await writeFile(pathMod.join(dir, filename), bytes);
+  return NextResponse.json({ url: `/uploads/${folder}/${filename}` });
 }
