@@ -10,20 +10,18 @@ export async function POST() {
     return NextResponse.json({ error: "No database configured" }, { status: 500 });
   }
 
-  // Only admins or requests with the correct SEED_SECRET can seed.
-  const auth = await requireUser();
-  if (!("response" in auth)) {
-    const r = await pool.query("select role from users where id = $1", [auth.userId]);
-    if (r.rows[0]?.role !== "admin") {
-      return NextResponse.json({ error: "Admin role required to seed" }, { status: 403 });
+  // Skip auth if DB is empty (fresh deploy — no users yet).
+  const { rows: userRows } = await pool.query("select count(*)::int as n from users");
+  if (userRows[0].n > 0) {
+    const auth = await requireUser();
+    if (!("response" in auth)) {
+      const r = await pool.query("select role from users where id = $1", [auth.userId]);
+      if (r.rows[0]?.role !== "admin") {
+        return NextResponse.json({ error: "Admin role required to seed" }, { status: 403 });
+      }
+    } else {
+      return NextResponse.json({ error: "Log in as admin first" }, { status: 401 });
     }
-  } else {
-    const secret = process.env.SEED_SECRET;
-    if (!secret) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    // Token-based auth not implemented here for simplicity; rely on admin login.
-    return NextResponse.json({ error: "Log in as admin first" }, { status: 401 });
   }
 
   try {
