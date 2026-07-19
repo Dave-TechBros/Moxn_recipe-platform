@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:setup": "node scripts/setup.mjs",
+    "db:seed": "node scripts/seed.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

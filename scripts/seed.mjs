@@ -2,7 +2,13 @@ import bcrypt from "bcryptjs";
 import pkg from "pg";
 const { Pool } = pkg;
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({
+  connectionString:
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL,
+});
 
 function slugify(s) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -25,10 +31,33 @@ async function getCatId(slug) {
   return r.rows[0]?.id;
 }
 
+// Ensure the starter categories exist (idempotent). Recipes reference these
+// by slug, so they must be present before recipes are inserted.
+async function seedCategories() {
+  const categories = [
+    { slug: "breakfast", name: "Breakfast", emoji: "🥞" },
+    { slug: "lunch", name: "Lunch", emoji: "🥪" },
+    { slug: "dinner", name: "Dinner", emoji: "🍝" },
+    { slug: "desserts", name: "Desserts", emoji: "🍰" },
+    { slug: "baking", name: "Baking", emoji: "🥐" },
+    { slug: "salads", name: "Salads", emoji: "🥗" },
+    { slug: "vegan", name: "Vegan", emoji: "🌱" },
+    { slug: "drinks", name: "Drinks", emoji: "🥤" },
+  ];
+  for (const c of categories) {
+    await pool.query(
+      `insert into categories (slug, name, emoji) values ($1,$2,$3)
+       on conflict (slug) do update set name=excluded.name, emoji=excluded.emoji`,
+      [c.slug, c.name, c.emoji]
+    );
+  }
+}
+
 // Deterministic "random" helpers
 function pick(arr, i) { return arr[i % arr.length]; }
 
 async function main() {
+  await seedCategories();
   console.log("Seeding users…");
   const users = [
     { username: "oliveandthyme", display_name: "Olive & Thyme", email: "olive@moxn.app", bio: "Mediterranean home cooking, mostly plants.", role: "creator" },

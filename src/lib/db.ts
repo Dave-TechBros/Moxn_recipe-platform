@@ -5,12 +5,22 @@ declare global {
   var _moxnPool: Pool | undefined;
 }
 
+// Resolve the database connection string. Vercel Postgres exposes
+// POSTGRES_URL / POSTGRES_PRISMA_URL; local/dev uses DATABASE_URL.
+function resolveConnectionString(): string {
+  return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL ||
+    "postgresql://moxn:moxn_dev_pw@localhost:5432/moxn"
+  );
+}
+
 const pool =
   global._moxnPool ??
   new Pool({
-    connectionString:
-      process.env.DATABASE_URL ||
-      "postgresql://moxn:moxn_dev_pw@localhost:5432/moxn",
+    connectionString: resolveConnectionString(),
     max: 10,
   });
 
